@@ -6,16 +6,6 @@ import pandas as pd
 
 M = 1e5
 
-model = """
-    200x1 + 120x2 + 120x3 + 180x4 + 1050x5 + 1400x6 max
-    1.7x1 + 3.2x2 + 1.1x3 + 1.1x4 + 4.7x5 + 0.9x6 <= 10
-    0 <= x1 <= 1.8
-    0 <= x2 <= 3.4
-    0 <= x3 <= 3.9
-    0 <= x4 <= 3.3
-    0 <= x5 <= 3.9
-    0 <= x6 <= 1.1
-"""
 def parse_from_xlsx(file_path, variant):
     data_table_1 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(1,7)).to_numpy()
     data_table_2 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(7,13)).to_numpy()
@@ -33,57 +23,6 @@ def parse_from_xlsx(file_path, variant):
     opt = (list(zip(range(1, len(opt) + 1), opt)), 'max')
 
     return opt, restrictions
-
-
-def parse_model(model_str):
-    variable_pattern = r'(?P<variable>\s*(?P<multiplier>[\+\-]?\s*\d*\.?\d*)x(?P<index>\d+))'
-    variables_pattern = r'(?P<variables>' + variable_pattern + r'+)'
-    opt_func_pattern = variables_pattern + r'\s*(?P<type>max|min)'
-    left_comp_pattern = r'(\s*(?P<value>[\+\-]?\s*\d+\.?\d*\s*)(?P<sign>[<>=]{1,2}))' + variables_pattern + r'+'
-    right_comp_pattern = variables_pattern + r'+(\s*(?P<sign>[<>=]{1,2})\s*(?P<value>[\+\-]?\s*\d+\.?\d*))'
-
-    # parse optimization function
-    opt_func_match = re.search(opt_func_pattern, model_str, re.MULTILINE)
-    opt_func_type = opt_func_match.group('type')
-    opt_func_variables_str = opt_func_match.group('variables')
-    opt_func_variables = []
-    variable_matches = [m for m in re.finditer(variable_pattern, opt_func_variables_str)]
-    for match in variable_matches:
-        opt_func_variables.append((int(match.group('index')), float(match.group('multiplier').replace(' ', ''))))
-    opt_func = (opt_func_variables, opt_func_type)
-
-    # parse restrictions
-    def handle_restrictions(matches, replace_sign):
-        restrictions = []
-        for match in matches:
-            sign = match.group('sign')
-            if replace_sign:
-                if sign.find('<') != -1:
-                    sign = sign.replace('<', '>')
-                elif sign.find('>') != -1:
-                    sign = sign.replace('>', '<')
-            variables = []
-            variables_str = match.group('variables')
-            for variable_match in re.finditer(variable_pattern, variables_str):
-                multiplier_str = variable_match.group('multiplier').replace(' ', '')
-                if multiplier_str == '' or multiplier_str == '+':
-                    multiplier = 1
-                elif multiplier_str == '-':
-                    multiplier = -1
-                else:
-                    multiplier = float(multiplier_str)
-                index = int(variable_match.group('index'))
-                variables.append((index, multiplier))
-            value = float(match.group('value').replace(' ', ''))
-            restrictions.append((variables, sign, value))
-        return restrictions
-
-    left_comp_matches = [m for m in re.finditer(left_comp_pattern, model_str, re.MULTILINE)]
-    right_comp_matches = [m for m in re.finditer(right_comp_pattern, model_str, re.MULTILINE)]
-    
-    restrictions = handle_restrictions(left_comp_matches, True) + handle_restrictions(right_comp_matches, False)
-
-    return opt_func, restrictions
 
 def make_table(opt_func, restrictions):
     opt_func_variables, _ = opt_func
@@ -244,7 +183,8 @@ def simplex_method(table, desiredIterations = 100, maximize = True):
     return result
 
 def main():
-    #opt_func, restrictions = parse_model(model)
+    np.set_printoptions(suppress=True,
+        formatter={'float_kind':'{:.3f}'.format})
     opt_func, restrictions = parse_from_xlsx('FARMER.xlsx', 9)
     table = make_table(opt_func, restrictions)
     table = addMCoeffs(table)
@@ -261,6 +201,9 @@ def main():
     print('basis rows:')
     print(basis_rows)
 
+    for i in range(len(basis_indices)):
+        print('x{} = {}'.format(basis_indices[i] + 1, result[basis_rows[i], -1]))
+    print('Profit: {}'.format(result[-1, -1]))
     return 0
 
 if __name__ == '__main__':
