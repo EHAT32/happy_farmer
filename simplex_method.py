@@ -1,7 +1,8 @@
 import re
 import numpy as np
-import math
 import sys
+import os
+import pandas as pd
 
 M = 1e5
 
@@ -15,6 +16,24 @@ model = """
     0 <= x5 <= 3.9
     0 <= x6 <= 1.1
 """
+def parse_from_xlsx(file_path, variant):
+    data_table_1 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(1,7)).to_numpy()
+    data_table_2 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(7,13)).to_numpy()
+    data_table_3 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(13,19)).to_numpy()
+
+    restr_1 = data_table_1[variant]
+    restr_2 = data_table_2[variant]
+    opt = data_table_3[variant]
+
+    restrictions = [(list(zip(range(1, len(restr_1) + 1), restr_1)), '<=', 10)]
+    for i in range(len(restr_2)):
+        restrictions.append(([(i + 1, 1)], '<=', restr_2[i]))
+        restrictions.append(([(i + 1, 1)], '>=', 0))
+
+    opt = (list(zip(range(1, len(opt) + 1), opt)), 'max')
+
+    return opt, restrictions
+
 
 def parse_model(model_str):
     variable_pattern = r'(?P<variable>\s*(?P<multiplier>[\+\-]?\s*\d*\.?\d*)x(?P<index>\d+))'
@@ -174,7 +193,7 @@ def simplex_iteration(table):
     for row in range(rows - 1):
         if (table[row, minColumnIndex] <= 0):
             continue
-        dividedValue = table[row, cols - 1] / table[row, minColumnIndex]
+        dividedValue = table[row, -1] / table[row, minColumnIndex]
 
         if (abs(dividedValue - min) < sys.float_info.epsilon):
             for basis_var_index in basis_vars_indices:
@@ -225,7 +244,8 @@ def simplex_method(table, desiredIterations = 100, maximize = True):
     return result
 
 def main():
-    opt_func, restrictions = parse_model(model)
+    #opt_func, restrictions = parse_model(model)
+    opt_func, restrictions = parse_from_xlsx('FARMER.xlsx', 9)
     table = make_table(opt_func, restrictions)
     table = addMCoeffs(table)
 
