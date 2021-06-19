@@ -7,9 +7,18 @@ M = 1e5
 #Parsing from excel table, creating restrictions
 
 def parse_from_xlsx(file_path, variant):
-    data_table_1 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(1,7)).to_numpy()
-    data_table_2 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(7,13)).to_numpy()
-    data_table_3 = pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(13,19)).to_numpy()
+    def formatnumbers(x):
+        x = str(x).replace(',', '.')
+        return float(x)
+
+    def convert(df : pd.DataFrame):
+        for col in df.columns:
+            df[col] =  df[col].apply(formatnumbers)
+        return df
+
+    data_table_1 = convert(pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(1,7))).to_numpy()
+    data_table_2 = convert(pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(7,13))).to_numpy()
+    data_table_3 = convert(pd.read_excel(file_path, header = 1, nrows = 19, usecols = range(13,19))).to_numpy()
 
     restr_1 = data_table_1[variant]
     restr_2 = data_table_2[variant]
@@ -97,12 +106,6 @@ def addMCoeffs(table):
 
     return table_with_M
 
-def check_optimal_solution(table):
-    for var in table[-1, :-1]:
-        if var < 0:
-            return False
-    return True
-
 def check_solution_exist(table):
     rows, _ = table.shape
     index_of_resolving_column = np.argmin(table[-1, :-1])
@@ -110,6 +113,12 @@ def check_solution_exist(table):
         if table[row, index_of_resolving_column] > 0:
             return True
     return False
+
+def check_optimal_solution(table):
+    for var in table[-1, :-1]:
+        if var < 0:
+            return False
+    return True
 
 def check_infinity_solutions(table):
     rows, cols = table.shape
